@@ -60,9 +60,9 @@ export default function IntroScreen() {
       clearInterval(timerRef.current);
     }
     
-    // Küçük bir gecikme ile yönlendirme yap
+    // Küçük bir gecikme ile yönlendirme yap - düzeltilmiş yol
     setTimeout(() => {
-      router.push('/dream');
+      router.push('/(tabs)/dream');
     }, 50);
   }, [router]);
 

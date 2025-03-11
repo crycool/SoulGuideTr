@@ -2,23 +2,23 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { PaperProvider } from 'react-native-paper';
 import { paperTheme } from './theme';
 import { ActivityIndicator, View } from 'react-native';
 import PerformanceMonitor from './_components/PerformanceMonitor';
 
-// Lazy loading ile SplashScreen'i yükleme
-const CustomSplashScreen = lazy(() => import('./SplashScreen'));
+// Doğrudan import kullanarak SplashScreen'i yükleme
+import CustomSplashScreen from './SplashScreen';
 
 export {
   ErrorBoundary,
 } from 'expo-router';
 
 export const unstable_settings = {
-  initialRouteName: '(tabs)',
-  // Remove any index routes that might be causing the issue
-  hideFromRouting: ['index'],
+  initialRouteName: 'intro',
+  // Intro sayfasının görünmesi için index saklama kaldırıldı
+  hideFromRouting: [],
 };
 
 SplashScreen.preventAutoHideAsync();
@@ -41,8 +41,8 @@ export default function RootLayout() {
       (async () => {
         await SplashScreen.hideAsync();
       })();
-      // Özel splash ekranı gösterilecek, bu nedenle RootLayoutNav döndürmek için
-      // showCustomSplash = false olmasını bekleyeceğiz
+      // Özel splash ekranı gösterilecek, showCustomSplash = true olarak kalıyor
+      // Intro sayfasına geçiş için kritik değişiklik
     }
   }, [error, loaded]);
 
@@ -51,15 +51,9 @@ export default function RootLayout() {
     return null;
   }
   
-  // Fontlar yüklendi, özel splash ekranını göster - Suspense ile lazy loading kullanımı
+  // Fontlar yüklendi, özel splash ekranını göster - Lazy loading kaldırıldı
   if (showCustomSplash) {
-    return (
-      <Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#131326' }}>
-        <ActivityIndicator size="large" color="#f1c40f" />
-      </View>}>
-        <CustomSplashScreen onFinish={() => setShowCustomSplash(false)} />
-      </Suspense>
-    );
+    return <CustomSplashScreen onFinish={() => setShowCustomSplash(false)} />;
   }
 
   // Özel splash ekranı tamamlandı, normal uygulamaya geç
@@ -73,6 +67,7 @@ function RootLayoutNav() {
       {__DEV__ && <PerformanceMonitor />}
       
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="intro" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="modal" />
       </Stack>
