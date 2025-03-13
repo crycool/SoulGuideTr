@@ -34,38 +34,28 @@ const ArchetypesChart: React.FC<ArchetypesChartProps> = ({ archetypes: propArche
   // Güvenilir scroll fonksiyonu
   const scrollToDetailCard = () => {
     if (!detailCardRef.current || !scrollViewRef.current) {
-      console.log("Referanslar henüz hazır değil, tekrar deneniyor...");
-      // Eğer referanslar henüz hazır değilse, tekrar dene
-      setTimeout(() => scrollToDetailCard(), 100);
+      console.log("Referanslar henüz hazır değil.");
       return;
     }
 
     try {
-      // requestAnimationFrame kullanarak bir sonraki render döngüsünde ölçüm yap
-      requestAnimationFrame(() => {
-        detailCardRef.current.measureLayout(
-          scrollViewRef.current.getInnerViewNode ? 
-            scrollViewRef.current.getInnerViewNode() : 
-            scrollViewRef.current,
-          (x, y, width, height) => {
-            // Ölçülen y pozisyonundan 80px offset çıkararak scroll et
-            scrollViewRef.current.scrollTo({ y: Math.max(0, y - 80), animated: true });
-          },
-          () => {
-            // Ölçüm başarısız olursa yedek plan
-            console.log("Ölçüm başarısız, yedek plan kullanılıyor");
-            scrollViewRef.current.scrollTo({ y: 500, animated: true });
-          }
-        );
-      });
+      // scrollViewRef'in tipini ve kullanılabilir methodları kontrol et
+      const ref = scrollViewRef.current;
+      
+      // Tip kontrolü yap ve uygun metodu çağır
+      if (typeof ref.scrollToOffset === 'function') {
+        // FlatList için
+        ref.scrollToOffset({ offset: 200, animated: true });
+      } else if (typeof ref.scrollTo === 'function') {
+        // ScrollView için
+        ref.scrollTo({ y: 200, animated: true });
+      } else {
+        // Hiçbir scroll metodu yoksa, en azından hata vermesin
+        console.log("Scroll referansı uygun metoda sahip değil");
+      }
     } catch (error) {
-      console.error('Scroll ölçümü hatası:', error);
-      // Hata durumunda sağlam bir yedek strateji
-      setTimeout(() => {
-        if (scrollViewRef.current) {
-          scrollViewRef.current.scrollTo({ y: 500, animated: true });
-        }
-      }, 200);
+      // Hata durumunda sessizce devam et, uygulamayı çökertme
+      console.error('Scroll işlemi hatası:', error);
     }
   };
   
@@ -106,10 +96,7 @@ const ArchetypesChart: React.FC<ArchetypesChartProps> = ({ archetypes: propArche
       const foundArchetype = archetypes.find(a => a.name === selectedName);
       if (foundArchetype) {
         setSelectedArchetype(foundArchetype);
-        // Gecikmeli scroll - daha uzun bekle (sayfa geçişleri için)
-        setTimeout(() => {
-          scrollToDetailCard();
-        }, 700);
+        // Scroll işlemi kaldırıldı - otomatik kaydırma yapmıyoruz
       }
     }
   }, [archetypes]);
@@ -145,11 +132,7 @@ const ArchetypesChart: React.FC<ArchetypesChartProps> = ({ archetypes: propArche
     archetypeStore.selectArchetype(archetype.name);
     setSelectedArchetype(archetype);
     
-    // Bileşenin render olması için önce bir gecikme ekle
-    setTimeout(() => {
-      // Sonra scroll işlemi yap (detailCardRef render edilmiş olacak)
-      scrollToDetailCard();
-    }, 100);
+    // Scroll işlemini tamamen kaldır - otomatik kaydırma yapmıyoruz
   };
 
   const closeDetails = () => {
