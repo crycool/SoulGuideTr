@@ -516,11 +516,18 @@ export default function DreamAnalyticsScreen() {
         return <TimePatternChart timePatterns={item.data} />;
         
       case 'symbols':
-        return <SymbolsCloud symbols={item.data} scrollViewRef={flatListRef} />;
+        return (
+          <View style={{ marginHorizontal: theme.spacing.md }}>
+            <SymbolsCloud symbols={item.data} scrollViewRef={null} />
+          </View>
+        );
         
       case 'insightPromotion':
-        console.log("InsightPromotionCard dreamCount:", item.data.dreamCount); // Debug log
-        return <InsightPromotionCard dreamCount={item.data.dreamCount} />;
+        return (
+          <View style={{ marginHorizontal: theme.spacing.md }}>
+            <InsightPromotionCard dreamCount={item.data.dreamCount} />
+          </View>
+        );
         
       case 'empty':
         return (
@@ -574,20 +581,18 @@ export default function DreamAnalyticsScreen() {
           data={analyticsItems}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
-          style={styles.container}  // Add container style
+          style={styles.container}
           contentContainerStyle={styles.contentContainer}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          scrollEventThrottle={16}
+          scrollEventThrottle={32}  // Changed from 16 to 32
           onScroll={handleScroll}
-          initialNumToRender={4} // İlk görünümde render edilecek öğe sayısı
-          maxToRenderPerBatch={3} // Bir işlem döngüsünde render edilecek maksimum öğe sayısı
-          windowSize={10} // Görünüm penceresinin boyutu (daha düşük değer = daha iyi performans)
-          removeClippedSubviews={true} // Ekran dışı görünümleri bellekten kaldır
-          ListEmptyComponent={!isLoading ? (
-            <EmptyAnalytics onPress={navigateToDreamChat} />
-          ) : null}
+          initialNumToRender={3}    // Changed from 4 to 3
+          maxToRenderPerBatch={2}   // Changed from 3 to 2
+          windowSize={5}            // Changed from 10 to 5
+          removeClippedSubviews={true}
+          ListEmptyComponent={!isLoading ? <EmptyAnalytics onPress={navigateToDreamChat} /> : null}
         />
       )}
     </>

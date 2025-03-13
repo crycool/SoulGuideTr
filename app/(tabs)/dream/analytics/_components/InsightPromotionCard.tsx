@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as Animatable from 'react-native-animatable';
 import { useRouter } from 'expo-router';
 import { theme } from '../../../../theme';
 
@@ -58,12 +57,7 @@ const InsightPromotionCard: React.FC<InsightPromotionCardProps> = ({ dreamCount 
   };
   
   return (
-    <Animatable.View
-      animation="fadeInUp"
-      delay={1000}
-      duration={800}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <TouchableOpacity 
         style={styles.card}
         onPress={handleCardPress}
@@ -79,13 +73,7 @@ const InsightPromotionCard: React.FC<InsightPromotionCardProps> = ({ dreamCount 
             {/* Başlık ve İkon */}
             <View style={styles.header}>
               <View style={styles.iconContainer}>
-                <Animatable.View
-                  animation="pulse"
-                  iterationCount="infinite"
-                  duration={2000}
-                >
-                  <Ionicons name="eye" size={24} color={theme.colors.secondary} />
-                </Animatable.View>
+                <Ionicons name="eye" size={24} color={theme.colors.secondary} />
               </View>
               
               <View style={styles.titleContainer}>
@@ -100,11 +88,7 @@ const InsightPromotionCard: React.FC<InsightPromotionCardProps> = ({ dreamCount 
             </Text>
             
             {/* Aksiyon Düğmesi */}
-            <Animatable.View
-              animation="pulse"
-              iterationCount={3}
-              duration={2000}
-            >
+            <View>
               <TouchableOpacity 
                 style={[
                   styles.button,
@@ -119,7 +103,7 @@ const InsightPromotionCard: React.FC<InsightPromotionCardProps> = ({ dreamCount 
                   color="white" 
                 />
               </TouchableOpacity>
-            </Animatable.View>
+            </View>
             
             {/* Bilgi Rozeti */}
             {dreamCount >= 3 && (
@@ -150,7 +134,7 @@ const InsightPromotionCard: React.FC<InsightPromotionCardProps> = ({ dreamCount 
           </View>
         </LinearGradient>
       </TouchableOpacity>
-    </Animatable.View>
+    </View>
   );
 };
 

@@ -25,40 +25,26 @@ const SymbolsCloud: React.FC<SymbolsCloudProps> = ({ symbols, scrollViewRef: par
   
   // Güvenilir scroll fonksiyonu
   const scrollToDetailCard = () => {
-    if (!detailCardRef.current || !scrollViewRef.current) {
-      console.log("Referanslar henüz hazır değil, tekrar deneniyor...");
-      // Eğer referanslar henüz hazır değilse, tekrar dene
-      setTimeout(() => scrollToDetailCard(), 100);
+    if (!scrollViewRef.current) {
+      console.log("ScrollView referansı henüz hazır değil");
       return;
     }
-
-    try {
-      // requestAnimationFrame kullanarak bir sonraki render döngüsünde ölçüm yap
-      requestAnimationFrame(() => {
-        detailCardRef.current.measureLayout(
-          scrollViewRef.current.getInnerViewNode ? 
-            scrollViewRef.current.getInnerViewNode() : 
-            scrollViewRef.current,
-          (x, y, width, height) => {
-            // Ölçülen y pozisyonundan 80px offset çıkararak scroll et
-            scrollViewRef.current.scrollTo({ y: Math.max(0, y - 80), animated: true });
-          },
-          () => {
-            // Ölçüm başarısız olursa yedek plan
-            console.log("Ölçüm başarısız, yedek plan kullanılıyor");
-            scrollViewRef.current.scrollTo({ y: 500, animated: true });
-          }
-        );
-      });
-    } catch (error) {
-      console.error('Scroll ölçümü hatası:', error);
-      // Hata durumunda sağlam bir yedek strateji
-      setTimeout(() => {
-        if (scrollViewRef.current) {
-          scrollViewRef.current.scrollTo({ y: 500, animated: true });
-        }
-      }, 200);
-    }
+    
+    // Sabit bir pozisyona scroll - güvenli yöntem
+    setTimeout(() => {
+      try {
+        // FlatList'in mevcut scroll pozisyonuna bir miktar ekleyerek detay kartını görünür yap
+        const currentOffset = scrollViewRef.current?.contentOffset?.y || 0;
+        const targetOffset = currentOffset + 200; // Mevcut pozisyonda 200px aşağıya kaydır
+        
+        scrollViewRef.current.scrollToOffset({ 
+          offset: targetOffset, 
+          animated: true 
+        });
+      } catch (error) {
+        console.log("Scroll hatası oluştu, görmezden geliniyor");
+      }
+    }, 200);
   };
   
   // Store'dan seçilen sembolü kontrol et ve yükle
@@ -190,18 +176,15 @@ const SymbolsCloud: React.FC<SymbolsCloudProps> = ({ symbols, scrollViewRef: par
         </View>
 
         {selectedSymbol && (
-          <Animated.View 
-            ref={detailCardRef}
+          <View 
             style={styles.detailsContainer}
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(200)}
           >
             <View style={styles.detailsHeader}>
               <Text style={[styles.detailsTitle, { color: selectedSymbol.color }]}>
                 {selectedSymbol.text}
               </Text>
               <TouchableOpacity onPress={closeDetails} style={styles.closeButtonContainer}>
-              <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <Text style={styles.detailsText}>
@@ -228,14 +211,13 @@ const SymbolsCloud: React.FC<SymbolsCloudProps> = ({ symbols, scrollViewRef: par
                     pathname: '/(tabs)/dream/archive',
                     params: { symbolFilter: selectedSymbol.text }
                   });
-                  // Sembolü store'da sakladık, geri dönüldüğünde kullanılacak
                 }}
               >
                 <Ionicons name="list-outline" size={22} color="#fff" style={styles.buttonIcon} />
                 <Text style={styles.buttonText}>Sembollü Rüyalarımı Göster</Text>
               </TouchableOpacity>
             </View>
-          </Animated.View>
+          </View>
         )}
         
         <View style={styles.legendContainer}>
