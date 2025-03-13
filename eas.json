@@ -20,7 +20,7 @@
         "buildType": "apk"
       },
       "ios": {
-        "resourceClass": "m1-medium"
+        "resourceClass": "m-medium"
       },
       "env": {
         "ENVIRONMENT": "preview"
@@ -31,7 +31,7 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "resourceClass": "m1-medium"
+        "resourceClass": "m-medium"
       },
       "env": {
         "ENVIRONMENT": "production"

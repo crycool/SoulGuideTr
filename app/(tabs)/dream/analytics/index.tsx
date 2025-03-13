@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, Alert, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, Alert, TouchableOpacity, ListRenderItemInfo } from 'react-native';
 import { ActivityIndicator, Chip, Text } from 'react-native-paper';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -36,6 +36,28 @@ import InsightPromotionCard from './_components/InsightPromotionCard';
 
 type TimeRange = 7 | 30 | 90 | null; // null = tüm zamanlar
 
+// Analiz bileşenlerinin tipleri
+type AnalyticComponentType = 
+  | 'filters'
+  | 'dataInfo'
+  | 'summary' 
+  | 'emotions' 
+  | 'themes' 
+  | 'archetypes'
+  | 'quality'
+  | 'frequency'
+  | 'timePatterns'
+  | 'symbols'
+  | 'insightPromotion'
+  | 'empty';
+
+// FlatList için veri öğeleri
+interface AnalyticItem {
+  id: string;
+  type: AnalyticComponentType;
+  data?: any;
+}
+
 export default function DreamAnalyticsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -51,8 +73,8 @@ export default function DreamAnalyticsScreen() {
   }, [navigation]);
   */
 
-  // ScrollView referansı oluştur
-  const scrollViewRef = useRef(null);
+  // FlatList referansı oluştur
+  const flatListRef = useRef<FlatList>(null);
   
   // URL parametrelerini al
   const { scrollY } = useLocalSearchParams<{ scrollY?: string }>();
@@ -78,54 +100,47 @@ export default function DreamAnalyticsScreen() {
   const [symbols, setSymbols] = useState<SymbolData[]>([]);
   const [timePatterns, setTimePatterns] = useState<TimePatternData>({dayOfWeek: {}, timeOfDay: {}});
   const [archetypes, setArchetypes] = useState<ArchetypeData[]>([]);
+  
+  // FlatList için veri öğeleri
+  const [analyticsItems, setAnalyticsItems] = useState<AnalyticItem[]>([]);
 
-  // Verilerin başarıyla yüklenmesini takip eden ayrı bir useEffect
+  // Verilerin yüklenmesi sonrası scroll pozisyonunu geri yükle
   useEffect(() => {
-    if (!isLoading && filteredDreams.length > 0 && !hasRestoredScroll && lastScrollPosition.current > 0) {
-      // Veri yüklendikten sonra scroll pozisyonunu geri yükle
+    if (!isLoading && analyticsItems.length > 0 && !hasRestoredScroll && lastScrollPosition.current > 0) {
       setTimeout(() => {
-        if (scrollViewRef.current) {
-          try {
-            console.log('SCROLL POZISYONU AYARLANIYOR:', lastScrollPosition.current);
-            // @ts-ignore
-            scrollViewRef.current.scrollTo({ y: lastScrollPosition.current, animated: false });
-            setHasRestoredScroll(true);
-          } catch (error) {
-            console.error('Scroll hatası:', error);
-          }
-        }
-      }, 1000); // Daha uzun süre bekle - sayfanın tamamen yüklenmesi için
+        scrollToOffset(lastScrollPosition.current, false);
+        setHasRestoredScroll(true);
+      }, 300);
     }
-  }, [isLoading, filteredDreams, hasRestoredScroll]);
+  }, [isLoading, analyticsItems, hasRestoredScroll, scrollToOffset]);
 
-  // Sayfa yorumlanırken scroll yapma
-  const setScrollOnMount = useCallback((position: number) => {
-    if (position > 0 && scrollViewRef.current) {
-      setTimeout(() => {
-        try {
-          console.log('setScrollOnMount çağrıldı. Pozisyon:', position);
-          // ScrollView için doğru metot scrollTo'dur
-          // @ts-ignore
-          scrollViewRef.current.scrollTo({ y: position, animated: false });
-          console.log('scrollTo başarılı');
-        } catch (error) {
-          console.error('Scroll hatası:', error);
-        }
-      }, 800);
+  // Scroll pozisyonunu ayarla
+  const scrollToOffset = useCallback((position: number, animated: boolean = false) => {
+    if (position > 0 && flatListRef.current) {
+      try {
+        console.log('scrollToOffset çağrıldı. Pozisyon:', position);
+        flatListRef.current.scrollToOffset({ offset: position, animated });
+        console.log('scrollToOffset başarılı');
+      } catch (error) {
+        console.error('Scroll hatası:', error);
+      }
     }
   }, []);
 
-  // Burada scroll pozisyonunu geri yüklemek için filtrelenmiş verilerin hazır olmasını bekliyoruz
+  // URL'den scroll pozisyonunu geri yükle
   useEffect(() => {
-    if (scrollY && !hasRestoredScroll && !isLoading && filteredDreams.length > 0) {
+    if (scrollY && !hasRestoredScroll && !isLoading && analyticsItems.length > 0) {
       const position = parseInt(scrollY, 10);
       if (!isNaN(position)) {
-        console.log('Scroll pozisyonu geri yükleniyor:', position);
-        setScrollOnMount(position);
-        setHasRestoredScroll(true);
+        console.log('URL\'den scroll pozisyonu geri yükleniyor:', position);
+        setTimeout(() => {
+          scrollToOffset(position, false);
+          setHasRestoredScroll(true);
+        }, 300);
       }
     }
-  }, [scrollY, hasRestoredScroll, isLoading, filteredDreams, setScrollOnMount]);
+  }, [scrollY, hasRestoredScroll, isLoading, analyticsItems, scrollToOffset]);
+
 
   // Scroll olayı işleyici - useCallback ile optimize edildi
   const handleScroll = useCallback(event => {
@@ -163,34 +178,17 @@ export default function DreamAnalyticsScreen() {
   useFocusEffect(
     useCallback(() => {
       console.log('useFocusEffect tetiklendi');
-      // Geri dönülmüşse, otomatik scroll'u aktif et
+      
       if (scrollY) {
         const position = parseInt(scrollY, 10);
         if (!isNaN(position)) {
-          // Sayfa geriye döndüğünde son scroll pozisyonunu yükle
           console.log('useFocusEffect: scrollY parametresi bulundu:', position);
           lastScrollPosition.current = position;
         }
-      } else {
-        console.log('useFocusEffect: scrollY parametresi yok');
       }
 
-      // Her ana sayfaya dönüşte resetle, böylece geri dönüş scroll'u hep çalışsın
       setHasRestoredScroll(false);
       loadDreams();
-
-      // Geri dönüşte en son pozisyonu kullanmak için bir miktar gecikme ile scroll pozisyonunu ayarla
-      setTimeout(() => {
-        if (lastScrollPosition.current > 0) {
-          console.log('useFocusEffect: scroll pozisyonu ayarlanmaya çalışılıyor:', lastScrollPosition.current);
-          try {
-            // @ts-ignore
-            scrollViewRef.current?.scrollTo({ y: lastScrollPosition.current, animated: false });
-          } catch (error) {
-            console.error('Scroll hatası:', error);
-          }
-        }
-      }, 1500);
 
     }, [loadDreams, scrollY])
   );
@@ -282,6 +280,81 @@ export default function DreamAnalyticsScreen() {
       setIsLoading(false);
     }
   }, [filteredDreams]);
+  
+  // FlatList veri öğelerini güncelle
+  useEffect(() => {
+    if (!isLoading) {
+      const items: AnalyticItem[] = [];
+      
+      // Filtreleri her zaman ekle
+      items.push({ id: 'filters', type: 'filters' });
+      
+      if (filteredDreams.length > 0) {
+        // Veri bilgisini ekle
+        items.push({ id: 'dataInfo', type: 'dataInfo' });
+        
+        // Özet varsa ekle
+        if (summary && Object.keys(summary).length > 0) {
+          items.push({ id: 'summary', type: 'summary', data: summary });
+        }
+        
+        // Duygular varsa ekle
+        if (emotions && emotions.length > 0) {
+          items.push({ id: 'emotions', type: 'emotions', data: emotions });
+        }
+        
+        // Temalar varsa ekle
+        if (themes && themes.length > 0) {
+          items.push({ id: 'themes', type: 'themes', data: themes });
+        }
+        
+        // Arketipler varsa ekle
+        if (archetypes && archetypes.length > 0) {
+          items.push({ id: 'archetypes', type: 'archetypes', data: archetypes });
+        }
+        
+        // Kalite verileri varsa ekle
+        if (qualityData && qualityData.length > 0) {
+          items.push({ id: 'quality', type: 'quality', data: qualityData });
+        }
+        
+        // Frekans verileri varsa ekle
+        if (frequencyData && frequencyData.length > 0) {
+          items.push({ id: 'frequency', type: 'frequency', data: frequencyData });
+        }
+        
+        // Zaman örüntüleri varsa ekle
+        if (timePatterns && timePatterns.dayOfWeek && Object.keys(timePatterns.dayOfWeek).length > 0) {
+          items.push({ id: 'timePatterns', type: 'timePatterns', data: timePatterns });
+        }
+        
+        // Semboller varsa ekle
+        if (symbols && symbols.length > 0) {
+          items.push({ id: 'symbols', type: 'symbols', data: symbols });
+        }
+        
+        // İçgörü promosyonu kartını ekle
+        items.push({ id: 'insightPromotion', type: 'insightPromotion', data: { dreamCount: dreams.length } });
+      } else if (!isLoading) {
+        // Veri yoksa boş analiz kartını ekle
+        items.push({ id: 'empty', type: 'empty' });
+      }
+      
+      setAnalyticsItems(items);
+    }
+  }, [
+    isLoading, 
+    filteredDreams, 
+    dreams, 
+    summary, 
+    emotions, 
+    themes, 
+    archetypes, 
+    qualityData, 
+    frequencyData, 
+    timePatterns, 
+    symbols
+  ]);
 
   // Yenileme işlemi
   const onRefresh = useCallback(async () => {
@@ -367,11 +440,111 @@ export default function DreamAnalyticsScreen() {
     }
   };
 
+  // Veri öğelerini render etme
+  const renderItem = ({ item }: ListRenderItemInfo<AnalyticItem>) => {
+    switch (item.type) {
+      case 'filters':
+        return (
+          <View style={styles.filtersContainer}>
+            <Text style={styles.filterLabel}>Zaman Aralığı:</Text>
+            <FlatList
+              data={[
+                { range: 7, label: 'Son 7 Gün', icon: 'calendar-week' },
+                { range: 30, label: 'Son 30 Gün', icon: 'calendar-month' },
+                { range: 90, label: 'Son 90 Gün', icon: 'calendar-range' },
+                { range: null, label: 'Tüm Zamanlar', icon: 'calendar' }
+              ]}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item: filterItem }) => (
+                <TouchableOpacity 
+                  style={[
+                    styles.timeRangeButton, 
+                    timeRange === filterItem.range && styles.selectedTimeRangeButton
+                  ]} 
+                  onPress={() => handleTimeRangeChange(filterItem.range)}
+                >
+                  <MaterialCommunityIcons 
+                    name={filterItem.icon} 
+                    size={18} 
+                    color={timeRange === filterItem.range ? theme.colors.text : theme.colors.primary} 
+                  />
+                  <Text style={[
+                    styles.timeRangeButtonText, 
+                    timeRange === filterItem.range && styles.selectedTimeRangeText
+                  ]}>
+                    {filterItem.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              keyExtractor={(filterItem) => `filter-${filterItem.range}`}
+              contentContainerStyle={styles.filterChips}
+            />
+          </View>
+        );
+        
+      case 'dataInfo':
+        return (
+          <View style={styles.dataInfoContainer}>
+            <MaterialCommunityIcons name="information-outline" size={16} color={theme.colors.text} />
+            <Text style={styles.dataInfoText}>
+              Analiz {filteredDreams.length} rüya kaydına dayanmaktadır
+              {timeRange && ` (Son ${timeRange} gün)`}
+            </Text>
+          </View>
+        );
+        
+      case 'summary':
+        return <AnalyticsSummary summary={item.data} />;
+        
+      case 'emotions':
+        return <EmotionsChart emotions={item.data} onEmotionPress={handleEmotionFilter} />;
+        
+      case 'themes':
+        return <ThemesChart themes={item.data} onThemePress={handleThemeFilter} scrollViewRef={flatListRef} />;
+        
+      case 'archetypes':
+        return <ArchetypesChart archetypes={item.data} onArchetypePress={handleArchetypeFilter} scrollViewRef={flatListRef} />;
+        
+      case 'quality':
+        return <DreamQualityChart qualityData={item.data} />;
+        
+      case 'frequency':
+        return <DreamFrequencyChart frequencyData={item.data} />;
+        
+      case 'timePatterns':
+        return <TimePatternChart timePatterns={item.data} />;
+        
+      case 'symbols':
+        return <SymbolsCloud symbols={item.data} scrollViewRef={flatListRef} />;
+        
+      case 'insightPromotion':
+        console.log("InsightPromotionCard dreamCount:", item.data.dreamCount); // Debug log
+        return <InsightPromotionCard dreamCount={item.data.dreamCount} />;
+        
+      case 'empty':
+        return (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Seçili zaman aralığında veri bulunamadı</Text>
+            <TouchableOpacity 
+              style={styles.emptyButton} 
+              onPress={navigateToDreamChat}
+            >
+              <Text style={styles.emptyButtonText}>Yeni Rüya Ekle</Text>
+            </TouchableOpacity>
+          </View>
+        );
+        
+      default:
+        return null;
+    }
+  };
+
   // Yeterli veri yoksa EmptyAnalytics göster
-  if (!isLoading && (dreams.length === 0 || filteredDreams.length === 0)) {
+  if (!isLoading && dreams.length === 0) {
+    console.log('EmptyAnalytics gösteriliyor: Hiç rüya verisi yok');
     return (
       <>
-        {/* Başlık ve geri tuşu */}
         <View style={styles.header}>
           <CustomBackButton />
           <Text style={styles.headerTitle}>Rüya Analizleri</Text>
@@ -382,149 +555,41 @@ export default function DreamAnalyticsScreen() {
     );
   }
 
-// Bu sayfa için Stack Screen component'i ekleyelim ve header'ı gizleyelim
-const { Stack } = require("expo-router");
-
   return (
     <>
-      {/* Başlık ve geri tuşu */}
       <View style={styles.header}>
         <CustomBackButton />
         <Text style={styles.headerTitle}>Rüya Analizleri</Text>
         <View style={{width: 40}} />
       </View>
       
-      <ScrollView 
-      ref={scrollViewRef}
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-      // Scroll olaylarını optimize etmek için
-      scrollEventThrottle={16}
-      onScroll={handleScroll}
-      onContentSizeChange={() => {
-        // İçerik boyutu değiştiğinde ve scroll pozisyonu geri yüklenmediyse
-        if (lastScrollPosition.current > 0 && !hasRestoredScroll) {
-          console.log('onContentSizeChange: Scroll pozisyonu ayarlanacak', lastScrollPosition.current);
-          try {
-            // @ts-ignore
-            scrollViewRef.current?.scrollTo({ y: lastScrollPosition.current, animated: false });
-            setHasRestoredScroll(true);
-          } catch (error) {
-            console.error('Scroll hatası:', error);
-          }
-        }
-      }}
-    >
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator animating={true} color={theme.colors.primary} size="large" />
           <Text style={styles.loadingText}>Analizler yükleniyor...</Text>
         </View>
       ) : (
-        <>
-          {/* Zaman Aralığı Filtresi */}
-          <View style={styles.filtersContainer}>
-            <Text style={styles.filterLabel}>Zaman Aralığı:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
-              <TouchableOpacity 
-                style={[styles.timeRangeButton, timeRange === 7 && styles.selectedTimeRangeButton]} 
-                onPress={() => handleTimeRangeChange(7)}
-              >
-                <MaterialCommunityIcons 
-                  name="calendar-week" 
-                  size={18} 
-                  color={timeRange === 7 ? theme.colors.text : theme.colors.primary} 
-                />
-                <Text style={[styles.timeRangeButtonText, timeRange === 7 && styles.selectedTimeRangeText]}>
-                  Son 7 Gün
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.timeRangeButton, timeRange === 30 && styles.selectedTimeRangeButton]} 
-                onPress={() => handleTimeRangeChange(30)}
-              >
-                <MaterialCommunityIcons 
-                  name="calendar-month" 
-                  size={18} 
-                  color={timeRange === 30 ? theme.colors.text : theme.colors.primary} 
-                />
-                <Text style={[styles.timeRangeButtonText, timeRange === 30 && styles.selectedTimeRangeText]}>
-                  Son 30 Gün
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.timeRangeButton, timeRange === 90 && styles.selectedTimeRangeButton]} 
-                onPress={() => handleTimeRangeChange(90)}
-              >
-                <MaterialCommunityIcons 
-                  name="calendar-range" 
-                  size={18} 
-                  color={timeRange === 90 ? theme.colors.text : theme.colors.primary} 
-                />
-                <Text style={[styles.timeRangeButtonText, timeRange === 90 && styles.selectedTimeRangeText]}>
-                  Son 90 Gün
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.timeRangeButton, timeRange === null && styles.selectedTimeRangeButton]} 
-                onPress={() => handleTimeRangeChange(null)}
-              >
-                <MaterialCommunityIcons 
-                  name="calendar" 
-                  size={18} 
-                  color={timeRange === null ? theme.colors.text : theme.colors.primary} 
-                />
-                <Text style={[styles.timeRangeButtonText, timeRange === null && styles.selectedTimeRangeText]}>
-                  Tüm Zamanlar
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-
-          {/* Veri Sayısı Bilgisi */}
-          {filteredDreams.length > 0 && (
-            <View style={styles.dataInfoContainer}>
-              <MaterialCommunityIcons name="information-outline" size={16} color={theme.colors.text} />
-              <Text style={styles.dataInfoText}>
-                Analiz {filteredDreams.length} rüya kaydına dayanmaktadır
-                {timeRange && ` (Son ${timeRange} gün)`}
-              </Text>
-            </View>
-          )}
-
-          {/* Analiz Komponentleri */}
-          {summary && Object.keys(summary).length > 0 && <AnalyticsSummary summary={summary} />}
-          {emotions && emotions.length > 0 && <EmotionsChart emotions={emotions} onEmotionPress={handleEmotionFilter} />}
-          {themes && themes.length > 0 && <ThemesChart themes={themes} onThemePress={handleThemeFilter} scrollViewRef={scrollViewRef} />}
-          {archetypes && archetypes.length > 0 && <ArchetypesChart archetypes={archetypes} onArchetypePress={handleArchetypeFilter} scrollViewRef={scrollViewRef} />}
-          {qualityData && qualityData.length > 0 && <DreamQualityChart qualityData={qualityData} />}
-          {frequencyData && frequencyData.length > 0 && <DreamFrequencyChart frequencyData={frequencyData} />}
-          {timePatterns && timePatterns.dayOfWeek && Object.keys(timePatterns.dayOfWeek).length > 0 && 
-            <TimePatternChart timePatterns={timePatterns} />}
-          {symbols && symbols.length > 0 && <SymbolsCloud symbols={symbols} scrollViewRef={scrollViewRef} />}
-          
-          {/* İçgörüler Promosyon Kartı */}
-          {filteredDreams.length > 0 && <InsightPromotionCard dreamCount={dreams.length} />}
-          {filteredDreams.length === 0 && !isLoading && (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Seçili zaman aralığında veri bulunamadı</Text>
-              <TouchableOpacity 
-                style={styles.emptyButton} 
-                onPress={navigateToDreamChat}
-              >
-                <Text style={styles.emptyButtonText}>Yeni Rüya Ekle</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </>
+        <FlatList
+          ref={flatListRef}
+          data={analyticsItems}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          style={styles.container}  // Add container style
+          contentContainerStyle={styles.contentContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          scrollEventThrottle={16}
+          onScroll={handleScroll}
+          initialNumToRender={4} // İlk görünümde render edilecek öğe sayısı
+          maxToRenderPerBatch={3} // Bir işlem döngüsünde render edilecek maksimum öğe sayısı
+          windowSize={10} // Görünüm penceresinin boyutu (daha düşük değer = daha iyi performans)
+          removeClippedSubviews={true} // Ekran dışı görünümleri bellekten kaldır
+          ListEmptyComponent={!isLoading ? (
+            <EmptyAnalytics onPress={navigateToDreamChat} />
+          ) : null}
+        />
       )}
-    </ScrollView>
     </>
   );
 }
@@ -585,13 +650,13 @@ const styles = StyleSheet.create({
   timeRangeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(241, 196, 15, 0.15)',
+    backgroundColor: `${theme.colors.primary}15`, // 15 is hex for 0.08 opacity
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.md,
     marginRight: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(241, 196, 15, 0.3)',
+    borderColor: `${theme.colors.primary}30`, // 30 is hex for 0.19 opacity
   },
   selectedTimeRangeButton: {
     backgroundColor: theme.colors.primary,
